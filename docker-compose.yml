@@ -1,0 +1,44 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: app-image
+    env_file:
+      - ./src/.env
+    volumes:
+      - .:/usr/src/app
+    command: uvicorn src.main:app --host 0.0.0.0 --port 1337 --reload
+    ports:
+      - 1337:1337
+      - 5678:5678
+
+  redis:
+    image: redis:7.0.8-alpine
+
+  celery_worker:
+    build:
+      context: .
+    command: celery -A src.celery.celery_worker.celery worker --loglevel=info
+    volumes:
+      - .:/usr/src/app
+    env_file:
+      - ./src/.env
+    depends_on:
+      - app
+      - redis
+
+  flower:
+    build:
+      context: .
+    command: celery -A src.celery.celery_worker.celery flower --port=5555
+    ports:
+      - 5555:5555
+    env_file:
+      - ./src/.env
+    depends_on:
+      - app
+      - redis
+      - celery_worker
